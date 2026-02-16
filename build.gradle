@@ -1,16 +1,12 @@
+plugins {
+    id 'com.github.ben-manes.versions' version '0.53.0'
+}
 apply plugin: 'groovy'
 
 def moquiDir = file(projectDir.absolutePath + '/../../..')
 def frameworkDir = file(moquiDir.absolutePath + '/framework')
 def componentNode = parseComponent(project)
 version = componentNode.@version
-
-// to run use "gradle dependencyUpdates"
-apply plugin: 'com.github.ben-manes.versions'
-buildscript {
-    repositories { jcenter() }
-    dependencies { classpath 'com.github.ben-manes:gradle-versions-plugin:0.13.0' }
-}
 
 dependencyUpdates.resolutionStrategy = {
     componentSelection { rules ->
@@ -21,37 +17,38 @@ dependencyUpdates.resolutionStrategy = {
     }
 }
 
-// maybe in the future: repositories { mavenCentral() }
 repositories {
     flatDir name: 'frameworkLib', dirs: frameworkDir.absolutePath + '/lib'
 //    flatDir name: 'localLib', dirs: projectDir.absolutePath + '/lib'
-    jcenter()
+    mavenCentral()
     maven { url "https://packages.atlassian.com/maven-3rdparty/" }
 }
 
 dependencies {
-    compile project(':framework')
-    compile group: 'com.jhlabs', name: 'filters', version: '2.0.235-1'
-    compile group: 'com.octo.captcha', name: 'jcaptcha-api', version: '2.0-alpha-1'
-    compile group: 'com.octo.captcha', name: 'jcaptcha', version: '2.0-alpha-1'
-    testCompile project(':framework').configurations.testCompile.allDependencies
+    implementation project(':framework')
+    implementation group: 'com.jhlabs', name: 'filters', version: '2.0.235-1'
+    implementation group: 'com.octo.captcha', name: 'jcaptcha-api', version: '2.0-alpha-1'
+    implementation group: 'com.octo.captcha', name: 'jcaptcha', version: '2.0-alpha-1'
+    testImplementation project(':framework').configurations.testImplementation.allDependencies
 }
 
 // by default the Java plugin runs test on build, change to not do that (only run test if explicit task)
-check.dependsOn.remove(test)
+tasks.named('test') {
+    enabled = false
+}
 task cleanLib(type: Delete) { delete fileTree(dir: projectDir.absolutePath + '/lib', include: '*') }
 clean.dependsOn cleanLib
 
 jar {
-    destinationDir = file(projectDir.absolutePath + '/lib')
+    destinationDirectory = file(projectDir.absolutePath + '/lib')
     // this is required to change from the default that includes the path to this module (ie 'runtime/base-componet/example')
-    baseName = componentNode.@name
+    archiveBaseName = componentNode.@name
 }
 
 task copyDependencies {
     doLast {
         copy {
-            from(configurations.runtime - project(':framework').configurations.runtime - project(':framework').jar.archivePath)
+            from(configurations.runtimeClasspath - project(':framework').configurations.runtimeClasspath - project(':framework').tasks.jar.archiveFile.get().asFile)
             into file(projectDir.absolutePath + '/lib')
         }
     }
